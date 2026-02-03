@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # Base de données pour le paiement
+  payment-db:
+    image: postgres:16-alpine
+    container_name: payment_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: GoodFood_PaymentDb
+    ports:
+      - "5432:5432"
+    volumes:
+      - payment_data:/var/lib/postgresql/data
+
+  # Bus de messages RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: goodfood_rabbitmq
+    ports:
+      - "5672:5672"   # Communication
+      - "15672:15672" # Interface Web (http://localhost:15672)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+volumes:
+  payment_data:
