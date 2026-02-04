@@ -1,5 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using GoodFood.Payment.Models;
+
+using Microsoft.EntityFrameworkCore;
 
 namespace GoodFood.Payment.Data;
 
