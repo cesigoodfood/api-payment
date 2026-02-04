@@ -26,9 +26,12 @@ services:
       context: ./GoodFood.Payment
       dockerfile: Dockerfile
     container_name: payment_api
+    ports:
+      - "5001:8080"
     environment:
       - ConnectionStrings__DefaultConnection=Host=payment-db;Port=5432;Database=GoodFood_PaymentDb;Username=postgres;Password=password
-      - RabbitMq__Host=rabbitmq
+      - ASPNETCORE_ENVIRONMENT=Development
+      - RabbitMq__Host=goodfood_rabbitmq
     depends_on:
       - payment-db
       - rabbitmq
