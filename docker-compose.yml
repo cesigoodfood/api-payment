@@ -1,7 +1,49 @@
-version: '3.8'
-
 services:
-  # Base de données pour le paiement
+  # ==========================================
+  # 1. TRAEFIK (L'API Gateway)
+  # ==========================================
+  traefik:
+    image: traefik:v2.10
+    container_name: goodfood_traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"    
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - goodfood-network
+
+  # ==========================================
+  # 2. VOTRE SERVICE DE PAIEMENT
+  # ==========================================
+  payment-service:
+    build:
+      context: ./GoodFood.Payment
+      dockerfile: Dockerfile
+    container_name: payment_api
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=payment-db;Port=5432;Database=GoodFood_PaymentDb;Username=postgres;Password=password
+      - RabbitMq__Host=rabbitmq
+    depends_on:
+      - payment-db
+      - rabbitmq
+    networks:
+      - goodfood-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.payment.rule=Host(`api.goodfood.fr`) && PathPrefix(`/api/payments`)"
+      
+      - "traefik.http.routers.payment.entrypoints=web"
+      - "traefik.http.services.payment.loadbalancer.server.port=8080"
+
+  # ==========================================
+  # 3. INFRASTRUCTURE (DB & RabbitMQ)
+  # ==========================================
   payment-db:
     image: postgres:16-alpine
     container_name: payment_postgres
@@ -9,21 +51,23 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: GoodFood_PaymentDb
-    ports:
-      - "5432:5432"
     volumes:
       - payment_data:/var/lib/postgresql/data
+    networks:
+      - goodfood-network
 
-  # Bus de messages RabbitMQ
   rabbitmq:
     image: rabbitmq:3-management
     container_name: goodfood_rabbitmq
     ports:
-      - "5672:5672"   # Communication
-      - "15672:15672" # Interface Web (http://localhost:15672)
-    environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - goodfood-network
+
+networks:
+  goodfood-network:
+    driver: bridge
 
 volumes:
   payment_data:
