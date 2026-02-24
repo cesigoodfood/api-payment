@@ -11,7 +11,8 @@ pipeline {
     string(name: 'REGISTRY_URL', defaultValue: 'rg.fr-par.scw.cloud', description: 'Docker registry host (ex: rg.fr-par.scw.cloud / ghcr.io)')
     string(name: 'REGISTRY_NAMESPACE', defaultValue: 'goodfood-alan', description: 'Registry namespace / organisation / project')
     string(name: 'IMAGE_NAME', defaultValue: 'api-payment', description: 'Docker image name')
-    string(name: 'REGISTRY_CREDENTIALS_ID', defaultValue: 'registry-credentials', description: 'Jenkins Username/Password credentials ID for registry login')
+    string(name: 'REGISTRY_PASSWORD_CREDENTIALS_ID', defaultValue: 'SCW_SECRET_KEY', description: 'Jenkins Secret text credentials ID (Scaleway SCW_SECRET_KEY)')
+    string(name: 'REGISTRY_USERNAME', defaultValue: 'nologin', description: 'Registry username (Scaleway Container Registry uses nologin)')
     booleanParam(name: 'TRIGGER_INFRA_DEPLOY', defaultValue: true, description: 'Trigger infra deployment job after push (main/tag only)')
     string(name: 'INFRA_JOB_NAME', defaultValue: 'infra-deploy-api-payment', description: 'Jenkins job name for infra deployment pipeline')
     string(name: 'INFRA_DEPLOYMENT_FILE', defaultValue: 'gitops/services/payment-service/deployment.yaml', description: 'Deployment manifest path in infra repo')
@@ -187,10 +188,9 @@ pipeline {
       }
       steps {
         withCredentials([
-          usernamePassword(
-            credentialsId: params.REGISTRY_CREDENTIALS_ID,
-            usernameVariable: 'REGISTRY_USERNAME',
-            passwordVariable: 'REGISTRY_PASSWORD',
+          string(
+            credentialsId: params.REGISTRY_PASSWORD_CREDENTIALS_ID,
+            variable: 'REGISTRY_PASSWORD',
           ),
         ]) {
           sh '''
