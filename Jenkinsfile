@@ -222,31 +222,7 @@ pipeline {
       }
     }
 
-    stage('Trigger infra deploy') {
-      when {
-        expression { env.SHOULD_TRIGGER_INFRA == 'true' }
-      }
-      steps {
-        script {
-          echo "Triggering infra job ${params.INFRA_JOB_NAME} with IMAGE_TAG=${env.IMAGE_TAG}"
-
-          build job: params.INFRA_JOB_NAME,
-            wait: true,
-            propagate: true,
-            parameters: [
-              string(name: 'REGISTRY_URL', value: params.REGISTRY_URL),
-              string(name: 'REGISTRY_NAMESPACE', value: params.REGISTRY_NAMESPACE),
-              string(name: 'IMAGE_NAME', value: params.IMAGE_NAME),
-              string(name: 'IMAGE_TAG', value: env.IMAGE_TAG),
-              string(name: 'DEPLOYMENT_FILE', value: params.INFRA_DEPLOYMENT_FILE),
-              string(name: 'K8S_NAMESPACE', value: params.INFRA_K8S_NAMESPACE),
-              string(name: 'K8S_DEPLOYMENT_NAME', value: params.INFRA_K8S_DEPLOYMENT_NAME),
-              string(name: 'SMOKE_URL', value: params.INFRA_SMOKE_URL),
-            ]
-        }
-      }
-    }
-  }
+    
 
   post {
     always {
