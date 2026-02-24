@@ -41,8 +41,45 @@ pipeline {
       steps {
         script {
           String rawBranch = (env.BRANCH_NAME ?: env.GIT_BRANCH ?: '').trim()
-          rawBranch = rawBranch.replaceFirst(/^origin\//, '')
           String tagName = (env.TAG_NAME ?: '').trim()
+
+          if (!rawBranch) {
+            rawBranch = sh(
+              script: '''
+                set -eu
+                BRANCH="$(git symbolic-ref --short -q HEAD || true)"
+
+                if [ -z "${BRANCH}" ] || [ "${BRANCH}" = "HEAD" ]; then
+                  BRANCH="$(
+                    git for-each-ref --format='%(refname:short)' refs/remotes/origin --contains HEAD \
+                      | grep -v '^origin/HEAD$' \
+                      | sed 's#^origin/##' \
+                      | awk 'BEGIN{main=""} { if ($0 == "main") { print; exit } if (NR == 1) { main=$0 } } END { if (NR > 0 && main != "") print main }' \
+                      | head -n1 \
+                      || true
+                  )"
+                fi
+
+                printf '%s' "${BRANCH}"
+              ''',
+              returnStdout: true,
+            ).trim()
+          }
+
+          if (!tagName) {
+            tagName = sh(
+              script: "git tag --points-at HEAD | head -n1",
+              returnStdout: true,
+            ).trim()
+          }
+
+          rawBranch = rawBranch
+            .replaceFirst(/^origin\//, '')
+            .replaceFirst(/^refs\\/heads\\//, '')
+            .replaceFirst(/^\\*\\//, '')
+          if (rawBranch == 'HEAD') {
+            rawBranch = ''
+          }
 
           env.GIT_SHA_SHORT = sh(script: 'git rev-parse --short=8 HEAD', returnStdout: true).trim()
           env.IMAGE_TAG = env.GIT_SHA_SHORT
@@ -61,6 +98,7 @@ pipeline {
 
           currentBuild.displayName = "#${env.BUILD_NUMBER} ${params.IMAGE_NAME}:${env.IMAGE_TAG}"
 
+          echo "Env branch hints: BRANCH_NAME=${env.BRANCH_NAME ?: 'n/a'} GIT_BRANCH=${env.GIT_BRANCH ?: 'n/a'} TAG_NAME=${env.TAG_NAME ?: 'n/a'}"
           echo "Branch=${rawBranch ?: 'n/a'} Tag=${tagName ?: 'n/a'}"
           echo "Image=${env.IMAGE_REPO}:${env.IMAGE_TAG}"
           echo "Push enabled=${env.SHOULD_PUSH}"
