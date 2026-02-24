@@ -44,6 +44,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseAuthorization();
+app.MapGet("/api/payments/health", () => Results.Ok(new
+{
+    status = "ok",
+    service = "api-payment"
+}));
 app.MapControllers();
 
 app.Run();
