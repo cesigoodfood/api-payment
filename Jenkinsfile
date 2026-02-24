@@ -23,6 +23,8 @@ pipeline {
   environment {
     DOTNET_CLI_TELEMETRY_OPTOUT = '1'
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE = '1'
+    PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+    DOCKER_BIN = '/usr/bin/docker'
     DOCKERFILE_PATH = 'GoodFood.Payment/Dockerfile'
     DOCKER_BUILD_CONTEXT = 'GoodFood.Payment'
   }
@@ -107,11 +109,33 @@ pipeline {
       }
     }
 
+    stage('Preflight debug') {
+      steps {
+        sh '''
+          set -x
+          pwd
+          hostname
+          id
+          echo "PATH=$PATH"
+          command -v docker || true
+          ls -l "${DOCKER_BIN}" || true
+          "${DOCKER_BIN}" --version || true
+          command -v dotnet || true
+          dotnet --info | head -20 || true
+
+          test -x "${DOCKER_BIN}" || {
+            echo "Docker CLI not found at ${DOCKER_BIN}. Rebuild/recreate Jenkins container." >&2
+            exit 1
+          }
+        '''
+      }
+    }
+
     stage('Docker build') {
       steps {
         sh '''
           set -eu
-          docker build \
+          "${DOCKER_BIN}" build \
             -f "${DOCKERFILE_PATH}" \
             -t "${IMAGE_REPO}:${IMAGE_TAG}" \
             "${DOCKER_BUILD_CONTEXT}"
@@ -133,7 +157,7 @@ pipeline {
         ]) {
           sh '''
             set +x
-            echo "${REGISTRY_PASSWORD}" | docker login "${REGISTRY_URL}" -u "${REGISTRY_USERNAME}" --password-stdin
+            echo "${REGISTRY_PASSWORD}" | "${DOCKER_BIN}" login "${REGISTRY_URL}" -u "${REGISTRY_USERNAME}" --password-stdin
           '''
         }
       }
@@ -145,16 +169,16 @@ pipeline {
       }
       steps {
         script {
-          sh "docker push ${env.IMAGE_REPO}:${env.IMAGE_TAG}"
+          sh "\"${env.DOCKER_BIN}\" push ${env.IMAGE_REPO}:${env.IMAGE_TAG}"
 
           if (env.PUSH_LATEST == 'true') {
-            sh "docker tag ${env.IMAGE_REPO}:${env.IMAGE_TAG} ${env.IMAGE_REPO}:latest"
-            sh "docker push ${env.IMAGE_REPO}:latest"
+            sh "\"${env.DOCKER_BIN}\" tag ${env.IMAGE_REPO}:${env.IMAGE_TAG} ${env.IMAGE_REPO}:latest"
+            sh "\"${env.DOCKER_BIN}\" push ${env.IMAGE_REPO}:latest"
           }
 
           if (env.IS_TAG_BUILD == 'true' && env.RELEASE_TAG?.trim()) {
-            sh "docker tag ${env.IMAGE_REPO}:${env.IMAGE_TAG} ${env.IMAGE_REPO}:${env.RELEASE_TAG}"
-            sh "docker push ${env.IMAGE_REPO}:${env.RELEASE_TAG}"
+            sh "\"${env.DOCKER_BIN}\" tag ${env.IMAGE_REPO}:${env.IMAGE_TAG} ${env.IMAGE_REPO}:${env.RELEASE_TAG}"
+            sh "\"${env.DOCKER_BIN}\" push ${env.IMAGE_REPO}:${env.RELEASE_TAG}"
           }
         }
       }
@@ -189,7 +213,7 @@ pipeline {
   post {
     always {
       script {
-        sh "docker logout ${params.REGISTRY_URL} >/dev/null 2>&1 || true"
+        sh "\"${env.DOCKER_BIN}\" logout ${params.REGISTRY_URL} >/dev/null 2>&1 || true"
       }
     }
     success {
@@ -197,4 +221,3 @@ pipeline {
     }
   }
 }
-
