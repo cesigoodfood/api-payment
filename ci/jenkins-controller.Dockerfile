@@ -6,7 +6,7 @@ ARG KUBECTL_VERSION=v1.30.6
 ARG DOTNET_SDK_VERSION=8.0.418
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates curl gnupg git lsb-release apt-transport-https docker.io \
+  && apt-get install -y --no-install-recommends ca-certificates curl gnupg git lsb-release apt-transport-https docker.io libicu-dev \
   && ARCH="$(dpkg --print-architecture)" \
   && case "${ARCH}" in amd64) K_ARCH=amd64; DOTNET_ARCH=x64 ;; arm64) K_ARCH=arm64; DOTNET_ARCH=arm64 ;; *) echo "Unsupported arch: ${ARCH}" >&2; exit 1 ;; esac \
   && curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
